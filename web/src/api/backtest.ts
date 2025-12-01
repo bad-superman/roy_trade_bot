@@ -14,6 +14,13 @@ export interface BacktestRequest {
   params: Record<string, any>;
 }
 
+export interface TradeMarker {
+    date: string;
+    type: 'buy' | 'sell';
+    price: number;
+    amount: number;
+}
+
 export interface BacktestResult {
   final_value: number;
   pnl: number;
@@ -21,15 +28,34 @@ export interface BacktestResult {
   max_drawdown: number;
   total_trades: number;
   win_rate: number;
+  chart_data: Array<[string, number, number, number, number]>; // Date, Open, Close, Low, High
+  trade_markers: TradeMarker[];
+}
+
+export interface TaskResponse {
+    task_id: string;
+    status: string;
+}
+
+export interface TaskStatusResponse {
+    state: string;
+    status?: string;
+    result?: BacktestResult; // Only present if state is SUCCESS
+    error?: string;
 }
 
 export const runBacktest = async (data: BacktestRequest) => {
-  const response = await api.post<{ status: string; result: BacktestResult }>('/backtest/run', data);
+  // Updated to return task_id
+  const response = await api.post<TaskResponse>('/backtest/run', data);
   return response.data;
 };
+
+export const getBacktestStatus = async (taskId: string) => {
+    const response = await api.get<TaskStatusResponse>(`/backtest/status/${taskId}`);
+    return response.data;
+}
 
 export const getStrategies = async () => {
   const response = await api.get<string[]>('/backtest/strategies');
   return response.data;
 };
-

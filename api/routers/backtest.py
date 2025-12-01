@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any
-from core.engine import run_backtest_task
+from celery.result import AsyncResult
+from tasks.worker import run_backtest_celery
 
 router = APIRouter()
 
@@ -16,25 +17,43 @@ class BacktestRequest(BaseModel):
 @router.post("/run")
 async def run_backtest(request: BacktestRequest):
     """
-    同步运行回测（仅演示用，生产环境应使用Celery异步）
+    异步提交回测任务
     """
-    try:
-        # 在实际生产中，这里应该发送给 Celery worker
-        # task = run_backtest_celery.delay(...)
-        # return {"task_id": task.id}
-        
-        # 为了快速演示，直接同步调用
-        result = run_backtest_task(
-            strategy_name=request.strategy,
-            params=request.params,
-            start_date=request.start_date,
-            end_date=request.end_date
-        )
-        return {"status": "success", "result": result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    task = run_backtest_celery.delay(
+        strategy_name=request.strategy,
+        params=request.params,
+        start_date=request.start_date,
+        end_date=request.end_date
+    )
+    return {"task_id": task.id, "status": "submitted"}
+
+@router.get("/status/{task_id}")
+async def get_backtest_status(task_id: str):
+    """
+    查询回测任务状态
+    """
+    task_result = AsyncResult(task_id)
+    
+    if task_result.state == 'PENDING':
+        return {"state": "PENDING", "status": "Pending..."}
+    elif task_result.state != 'FAILURE':
+        result = task_result.result
+        if result and isinstance(result, dict) and result.get("status") == "failed":
+             return {
+                "state": "FAILURE",
+                "error": result.get("error")
+            }
+            
+        return {
+            "state": task_result.state,
+            "result": result
+        }
+    else:
+        return {
+            "state": "FAILURE",
+            "error": str(task_result.result)
+        }
 
 @router.get("/strategies")
 def list_strategies():
     return ["SmaCross"]
-

@@ -1,5 +1,5 @@
 import os
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Roy Trade Bot"
@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     MONGO_DB_NAME: str = "roy_trade_data"
     
     # Redis
+    # Use 'redis' as hostname when running inside docker network trade_net
+    # But fallback to 'localhost' for local development
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     
     # Celery
@@ -21,4 +23,3 @@ class Settings(BaseSettings):
         env_file = ".env"
 
 settings = Settings()
-
