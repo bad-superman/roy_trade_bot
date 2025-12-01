@@ -21,14 +21,41 @@ class BacktestEngine:
         # Mocking data for now using simple generated data or file
         # For demonstration, let's create a dummy dataframe
         
-        # 模拟生成一些数据
+        # 模拟生成更真实的随机游走数据
         dates = pd.date_range(start=self.start_date, end=self.end_date, freq='1H')
+        
+        # 初始价格
+        price = 1.1000
+        prices = []
+        opens = []
+        highs = []
+        lows = []
+        closes = []
+        
+        for _ in range(len(dates)):
+            # 增加波动率，模拟更真实的行情
+            change = 0.005 - np.random.normal(0, 0.01) # 0.2% 的标准差波动
+            open_p = price
+            close_p = price * (1 + change)
+            
+            # 生成 High/Low
+            high_p = max(open_p, close_p) * (1 + abs(np.random.normal(0, 0.01)))
+            low_p = min(open_p, close_p) * (1 - abs(np.random.normal(0, 0.01)))
+            
+            opens.append(open_p)
+            highs.append(high_p)
+            lows.append(lows)
+            closes.append(close_p)
+            
+            # 更新下一次的基础价格
+            price = close_p
+            
         self.data = pd.DataFrame({
-            'open': 1.1000 + (np.random.randn(len(dates)) / 100),
-            'high': 1.1050 + (np.random.randn(len(dates)) / 100),
-            'low': 1.0950 + (np.random.randn(len(dates)) / 100),
-            'close': 1.1020 + (np.random.randn(len(dates)) / 100),
-            'volume': 1000
+            'open': opens,
+            'high': highs,
+            'low': [min(o, c) * (1 - abs(np.random.normal(0, 0.001))) for o, c in zip(opens, closes)], # 修复上面的 lows 变量引用错误并重新生成
+            'close': closes,
+            'volume': np.random.randint(100, 1000, size=len(dates))
         }, index=dates)
         
         feed = bt.feeds.PandasData(dataname=self.data)
@@ -102,13 +129,12 @@ class BacktestEngine:
             "pnl": self.cerebro.broker.getvalue() - self.initial_cash,
             # SharpeRatio may return None if insufficient data or no trades
             "sharpe_ratio": sharpe.get('sharperatio', 0.0) if sharpe.get('sharperatio') is not None else 0.0,
-            "max_drawdown": drawdown.get('max', {}).get('drawdown', 0.0),
+            "max_drawdown": float(drawdown.get('max', {}).get('drawdown', 0.0)),
             "total_trades": trades.get('total', {}).get('total', 0),
             "win_rate": trades.get('won', {}).get('total', 0) / max(1, trades.get('total', {}).get('total', 1)),
             "chart_data": chart_data, # OHLC data for charts
             "trade_markers": trade_markers # Buy/Sell points
         }
-
 def run_backtest_task(strategy_name: str, params: dict, start_date: str, end_date: str):
     # 解析日期
     start = datetime.datetime.strptime(start_date, "%Y-%m-%d")
@@ -126,3 +152,4 @@ def run_backtest_task(strategy_name: str, params: dict, start_date: str, end_dat
         
     result = engine.run()
     return result
+
