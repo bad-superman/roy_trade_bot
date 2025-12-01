@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: roy_trade_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: roy_trade_db
+      MYSQL_USER: trade_user
+      MYSQL_PASSWORD: trade_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - trade_net
+
+  mongodb:
+    image: mongo:6.0
+    container_name: roy_trade_mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - trade_net
+
+  redis:
+    image: redis:7.0
+    container_name: roy_trade_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - trade_net
+
+  backend:
+    build: .
+    container_name: roy_trade_backend
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mysql
+      - mongodb
+      - redis
+    environment:
+      - MYSQL_URL=mysql+pymysql://trade_user:trade_password@mysql/roy_trade_db
+      - MONGO_URL=mongodb://root:rootpassword@mongodb:27017/
+      - REDIS_URL=redis://redis:6379/0
+    networks:
+      - trade_net
+
+  worker:
+    build: .
+    container_name: roy_trade_worker
+    command: celery -A tasks.worker worker --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - backend
+    environment:
+      - MYSQL_URL=mysql+pymysql://trade_user:trade_password@mysql/roy_trade_db
+      - MONGO_URL=mongodb://root:rootpassword@mongodb:27017/
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    networks:
+      - trade_net
+
+networks:
+  trade_net:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  mongo_data:
+  redis_data:
+
