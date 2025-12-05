@@ -20,11 +20,12 @@ async def run_backtest(request: BacktestRequest):
     异步提交回测任务
     """
     task = run_backtest_celery.delay(
-        strategy_name=request.strategy,
-        params=request.params,
-        start_date=request.start_date,
-        end_date=request.end_date
-    )
+            strategy_name=request.strategy,
+            symbol=request.symbol,
+            params=request.params,
+            start_date=request.start_date,
+            end_date=request.end_date
+        )
     return {"task_id": task.id, "status": "submitted"}
 
 @router.get("/status/{task_id}")

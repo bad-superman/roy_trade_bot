@@ -1,19 +1,23 @@
 import matplotlib
 matplotlib.use('Agg')  # Prevent GUI backend issues
 import backtrader as bt
-import datetime
+# import datetime
+from datetime import datetime
 import numpy as np
 import pandas as pd
 import json
 from core.strategy.base import SmaCross  # 暂时硬编码，后续做动态加载
+from core.brokers.okx import OKXStore
 
 class BacktestEngine:
-    def __init__(self, start_date, end_date, initial_cash=10000.0):
+    def __init__(self, start_date, end_date, initial_cash=100000.0):
         self.cerebro = bt.Cerebro()
         self.start_date = start_date
         self.end_date = end_date
         self.initial_cash = initial_cash
         self.cerebro.broker.setcash(initial_cash)
+        # 设置单笔交易资金
+        self.cerebro.addsizer(bt.sizers.PercentSizer, percents=1)
         self.data = None # Store dataframe for plotting later
         
     def load_data(self, symbol="EURUSD", timeframe=bt.TimeFrame.Minutes):
@@ -22,45 +26,60 @@ class BacktestEngine:
         # For demonstration, let's create a dummy dataframe
         
         # 模拟生成更真实的随机游走数据
-        dates = pd.date_range(start=self.start_date, end=self.end_date, freq='1H')
+        # dates = pd.date_range(start=self.start_date, end=self.end_date, freq='1H')
         
         # 初始价格
-        price = 1.1000
+        # price = 1.1000
+        dates = []
         prices = []
         opens = []
         highs = []
         lows = []
         closes = []
+        volumes = []
         
-        for _ in range(len(dates)):
-            # 增加波动率，模拟更真实的行情
-            change = 0.005 - np.random.normal(0, 0.01) # 0.2% 的标准差波动
-            open_p = price
-            close_p = price * (1 + change)
+        # for _ in range(len(dates)):
+        #     # 增加波动率，模拟更真实的行情
+        #     change = 0.005 - np.random.normal(0, 0.01) # 0.2% 的标准差波动
+        #     open_p = price
+        #     close_p = price * (1 + change)
             
-            # 生成 High/Low
-            high_p = max(open_p, close_p) * (1 + abs(np.random.normal(0, 0.01)))
-            low_p = min(open_p, close_p) * (1 - abs(np.random.normal(0, 0.01)))
+        #     # 生成 High/Low
+        #     high_p = max(open_p, close_p) * (1 + abs(np.random.normal(0, 0.01)))
+        #     low_p = min(open_p, close_p) * (1 - abs(np.random.normal(0, 0.01)))
             
-            opens.append(open_p)
-            highs.append(high_p)
-            lows.append(lows)
-            closes.append(close_p)
+        #     opens.append(open_p)
+        #     highs.append(high_p)
+        #     lows.append(lows)
+        #     closes.append(close_p)
             
-            # 更新下一次的基础价格
-            price = close_p
+        #     # 更新下一次的基础价格
+        #     price = close_p
+        
+        # 使用okx_sotre
+        okx_store = OKXStore.get_instance()
+        ohlcv = okx_store.exchange.fetch_ohlcv(symbol, '1h', limit=200)
+        
+        for candle in ohlcv:  # 显示最后3条
+            timestamp, open_price, high, low, close, volume = candle
+            dt = datetime.fromtimestamp(timestamp / 1000.0)
+            dates.append(dt)
+            opens.append(open_price)
+            highs.append(high)
+            lows.append(low)
+            closes.append(close)
+            volumes.append(volume)
             
         self.data = pd.DataFrame({
             'open': opens,
             'high': highs,
-            'low': [min(o, c) * (1 - abs(np.random.normal(0, 0.001))) for o, c in zip(opens, closes)], # 修复上面的 lows 变量引用错误并重新生成
+            'low': lows,
             'close': closes,
-            'volume': np.random.randint(100, 1000, size=len(dates))
+            'volume': volumes,
         }, index=dates)
         
         feed = bt.feeds.PandasData(dataname=self.data)
         self.cerebro.adddata(feed)
-
     def add_strategy(self, strategy_class, **kwargs):
         self.cerebro.addstrategy(strategy_class, **kwargs)
 
@@ -135,13 +154,13 @@ class BacktestEngine:
             "chart_data": chart_data, # OHLC data for charts
             "trade_markers": trade_markers # Buy/Sell points
         }
-def run_backtest_task(strategy_name: str, params: dict, start_date: str, end_date: str):
+def run_backtest_task(strategy_name: str, symbol: str, params: dict, start_date: str, end_date: str):
     # 解析日期
-    start = datetime.datetime.strptime(start_date, "%Y-%m-%d")
-    end = datetime.datetime.strptime(end_date, "%Y-%m-%d")
+    start = datetime.strptime(start_date, "%Y-%m-%d")
+    end = datetime.strptime(end_date, "%Y-%m-%d")
     
     engine = BacktestEngine(start, end)
-    engine.load_data() # Mock data
+    engine.load_data(symbol=symbol) # Mock data
     
     # 这里应该根据 strategy_name 动态加载
     # 暂时只支持 SmaCross
@@ -152,4 +171,5 @@ def run_backtest_task(strategy_name: str, params: dict, start_date: str, end_dat
         
     result = engine.run()
     return result
+
 

@@ -194,6 +194,7 @@ const BacktestPage: React.FC = () => {
                 options={[
                   { label: 'XAUUSD (黄金)', value: 'XAUUSD' },
                   { label: 'EURUSD (欧元)', value: 'EURUSD' },
+                  { label: 'BTC/USDT (比特币)', value: 'BTC/USDT' },
                 ]}
                 initialValue="EURUSD"
                 rules={[{ required: true, message: '请选择品种' }]}
@@ -207,7 +208,7 @@ const BacktestPage: React.FC = () => {
               <ProFormMoney
                 name="initial_cash"
                 label="初始资金"
-                initialValue={10000}
+                initialValue={100000}
                 rules={[{ required: true }]}
               />
               

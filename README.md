@@ -16,7 +16,7 @@
 
 ### 启动服务
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ### 访问接口

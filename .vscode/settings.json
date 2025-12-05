@@ -1,0 +1,11 @@
+{
+    "python.defaultInterpreterPath": "/Users/gxc/opt/anaconda3/bin/python",
+    "python.analysis.extraPaths": [
+      "${workspaceFolder}"
+    ],
+    "python.autoComplete.extraPaths": [
+      "${workspaceFolder}"
+    ],
+    "python.analysis.typeCheckingMode": "basic",
+    "python.languageServer": "Pylance"
+  }

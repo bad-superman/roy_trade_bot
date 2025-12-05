@@ -13,3 +13,6 @@ pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
 requests>=2.28.2
 matplotlib>=3.7.1
+oandapyV20>=0.7.2
+ib_insync>=0.9.86
+ccxt>=3.0.0
